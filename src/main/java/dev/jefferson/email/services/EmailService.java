@@ -183,6 +183,28 @@ public class EmailService {
         return email;
     }
 
+    @Transactional
+    public Email sendEmailComplete(Email email, List<MultipartFile> files, Map<String, String> params) throws MessagingException {
+
+        Email result = new Email();
+
+        try {
+            if(files != null && !files.isEmpty() && email.getTemplateName() == null) {
+                result = sendWithAttachment(email, files);
+            } else if((files == null || files.isEmpty()) && email.getTemplateName() != null) {
+                result = sendEmailTemplate(email, params);
+            } else {
+                result = send(email);
+            }
+
+        } catch (MailException e) {
+            e.printStackTrace();
+            throw new RuntimeException(e.getMessage());
+        }
+
+        return result;
+    }
+
     public Page<Email> findAll(Pageable pageable) {
         return emailRepository.findAll(pageable);
     }
