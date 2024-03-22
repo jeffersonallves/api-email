@@ -17,6 +17,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.mail.MailException;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -61,6 +64,9 @@ public class EmailService {
     public Email send(Email email) {
         EmailLog log = null;
 
+        if(!StringUtils.isEmpty(email.getOwnerRef()))
+            email.setOwnerRef(getLoggedInUser());
+
         email.setSendDateEmail(LocalDateTime.now());
         email.setEmailFrom(emailFrom);
 
@@ -85,8 +91,10 @@ public class EmailService {
 
     @Transactional
     public Email sendWithAttachment(Email email, List<MultipartFile> files) throws MessagingException {
-
         EmailLog log = null;
+
+        if(!StringUtils.isEmpty(email.getOwnerRef()))
+            email.setOwnerRef(getLoggedInUser());
 
         email.setSendDateEmail(LocalDateTime.now());
         email.setEmailFrom(emailFrom);
@@ -130,8 +138,10 @@ public class EmailService {
 
     @Transactional
     public Email sendEmailTemplate(Email email, Map<String, String> params) throws MessagingException {
-
         EmailLog log = null;
+
+        if(!StringUtils.isEmpty(email.getOwnerRef()))
+            email.setOwnerRef(getLoggedInUser());
 
         TemplateEngine templateEngine = new TemplateEngine();
         email.setSendDateEmail(LocalDateTime.now());
@@ -192,10 +202,6 @@ public class EmailService {
 
     public Page<Email> findBySendDateEmailBetween(LocalDateTime start, LocalDateTime end, Pageable pageable) {
         return emailRepository.findBySendDateEmailBetween(start, end, pageable);
-    }
-
-    private MimeMessage getMimeMessage() {
-        return mailSender.createMimeMessage();
     }
 
     public Page<Email> findBySendDateEmailAfter(LocalDateTime start, Pageable pageable) {
@@ -268,6 +274,21 @@ public class EmailService {
             helper.setBcc(myBccList);
 
         return message;
+    }
+
+    private String getLoggedInUser() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        if (authentication == null) {
+            return "Anonymous";
+        }
+
+        Object principal = authentication.getPrincipal();
+        if (principal instanceof UserDetails) {
+            return ((UserDetails)principal).getUsername();
+        } else {
+            return principal.toString();
+        }
     }
 
 }
