@@ -1,5 +1,6 @@
 package dev.jefferson.email.configs;
 
+import org.springframework.amqp.core.DirectExchange;
 import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.beans.factory.annotation.Value;
@@ -13,7 +14,7 @@ public class RabbitMQConfig {
 
     @Bean
     public Queue queue() {
-        return new Queue(queue, true);
+        return new Queue(queue, true, false, false);
     }
 
     @Bean

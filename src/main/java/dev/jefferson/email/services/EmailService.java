@@ -5,10 +5,13 @@ import dev.jefferson.email.entities.EmailAttach;
 import dev.jefferson.email.entities.EmailLog;
 import dev.jefferson.email.enuns.StatusEmail;
 import dev.jefferson.email.implementations.EmailRepositoryImpl;
+import dev.jefferson.email.infrastructure.error.ErrorNotification;
 import dev.jefferson.email.repositories.EmailAttachRepository;
 import dev.jefferson.email.repositories.EmailLogRepository;
 import dev.jefferson.email.repositories.EmailRepository;
+import dev.jefferson.email.utility.AuthUtility;
 import jakarta.mail.MessagingException;
+import jakarta.mail.internet.InternetAddress;
 import jakarta.mail.internet.MimeMessage;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -17,9 +20,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.mail.MailException;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -30,6 +30,7 @@ import org.thymeleaf.templatemode.TemplateMode;
 import org.thymeleaf.templateresolver.ClassLoaderTemplateResolver;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -60,12 +61,13 @@ public class EmailService {
     @Value("${spring.mail.default-encoding}")
     private String ENCODING;
 
+    @ErrorNotification
     @Transactional
     public Email send(Email email) {
         EmailLog log = null;
 
         if(!StringUtils.isEmpty(email.getOwnerRef()))
-            email.setOwnerRef(getLoggedInUser());
+            email.setOwnerRef(AuthUtility.getLoggedInUser());
 
         email.setSendDateEmail(LocalDateTime.now());
         email.setEmailFrom(emailFrom);
@@ -89,12 +91,13 @@ public class EmailService {
         return email;
     }
 
+    @ErrorNotification
     @Transactional
     public Email sendWithAttachment(Email email, List<MultipartFile> files) throws MessagingException {
         EmailLog log = null;
 
         if(!StringUtils.isEmpty(email.getOwnerRef()))
-            email.setOwnerRef(getLoggedInUser());
+            email.setOwnerRef(AuthUtility.getLoggedInUser());
 
         email.setSendDateEmail(LocalDateTime.now());
         email.setEmailFrom(emailFrom);
@@ -136,12 +139,13 @@ public class EmailService {
         return email;
     }
 
+    @ErrorNotification
     @Transactional
     public Email sendEmailTemplate(Email email, Map<String, String> params) throws MessagingException {
         EmailLog log = null;
 
         if(!StringUtils.isEmpty(email.getOwnerRef()))
-            email.setOwnerRef(getLoggedInUser());
+            email.setOwnerRef(AuthUtility.getLoggedInUser());
 
         TemplateEngine templateEngine = new TemplateEngine();
         email.setSendDateEmail(LocalDateTime.now());
@@ -230,6 +234,55 @@ public class EmailService {
         return emailRepository.findBySendDateEmailAfter(start, pageable);
     }
 
+    public void save(Email email, List<MultipartFile> files, StatusEmail status) {
+        try {
+            for(MultipartFile file : files) {
+                EmailAttach emailAttach = new EmailAttach();
+                emailAttach.setAttach(file.getBytes());
+                emailAttach.setEmail(email);
+                email.getEmailAttach().add(emailAttach);
+            }
+            email.setStatusEmail(status);
+            emailRepository.save(email);
+
+            if(email.getEmailAttach().size() > 0)
+                emailAttachRepository.saveAll(email.getEmailAttach());
+
+        } catch(Exception e) {
+            e.printStackTrace();
+            throw new RuntimeException(e.getMessage());
+        }
+
+    }
+
+    public void deleteById(UUID idEmail) {
+        try {
+
+            emailRepository.deleteById(idEmail);
+
+        } catch(Exception e) {
+            e.printStackTrace();
+            throw new RuntimeException(e.getMessage());
+        }
+
+    }
+
+    public void sendExceptionEmail(Exception e) {
+        try{
+            final MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper mimeMessageHelper = new MimeMessageHelper(message, true, StandardCharsets.UTF_8.name());
+
+            mimeMessageHelper.setFrom(new InternetAddress(emailFrom));
+            mimeMessageHelper.setTo(InternetAddress.parse(emailFrom));
+            mimeMessageHelper.setSubject("Notificação de erro no sistema");
+            mimeMessageHelper.setText("Ocorreu um erro no sistema" + "\n" + e.getMessage() + "\n" + LocalDateTime.now());
+
+            mailSender.send(message);
+        } catch (MessagingException ex) {
+            ex.printStackTrace();
+        }
+    }
+
     private Context buildContext(Map<String, String> params) {
         Context context = new Context();
         if(params != null) {
@@ -296,21 +349,6 @@ public class EmailService {
             helper.setBcc(myBccList);
 
         return message;
-    }
-
-    private String getLoggedInUser() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-
-        if (authentication == null) {
-            return "Anonymous";
-        }
-
-        Object principal = authentication.getPrincipal();
-        if (principal instanceof UserDetails) {
-            return ((UserDetails)principal).getUsername();
-        } else {
-            return principal.toString();
-        }
     }
 
 }

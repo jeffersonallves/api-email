@@ -3,5 +3,6 @@ package dev.jefferson.email.enuns;
 public enum StatusEmail {
     SENT,
     ERROR,
-    PROCESSING
+    PROCESSING,
+    SCHEDULED
 }

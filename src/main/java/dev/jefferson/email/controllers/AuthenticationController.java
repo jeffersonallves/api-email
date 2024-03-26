@@ -6,6 +6,10 @@ import dev.jefferson.email.dtos.RegisterDTO;
 import dev.jefferson.email.entities.User;
 import dev.jefferson.email.repositories.UserRepository;
 import dev.jefferson.email.security.TokenService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,6 +26,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("v1/auth")
+@Tag(name = "Authentication")
 public class AuthenticationController {
     @Autowired
     private AuthenticationManager authenticationManager;
@@ -30,6 +35,12 @@ public class AuthenticationController {
     @Autowired
     private TokenService tokenService;
 
+    @Operation(summary = "Login for access API", description = "Login API")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Logged."),
+            @ApiResponse(responseCode = "404", description = "User not found"),
+            @ApiResponse(responseCode = "500", description = "Error when trying to log in")
+    })
     @PostMapping("/login")
     public ResponseEntity login(@RequestBody @Valid AuthenticationDTO data){
         var usernamePassword = new UsernamePasswordAuthenticationToken(data.login(), data.password());
@@ -40,6 +51,12 @@ public class AuthenticationController {
         return ResponseEntity.ok(new LoginResponseDTO(token));
     }
 
+    @Operation(summary = "Register user for access API", description = "Register user for access API")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Registered User."),
+            @ApiResponse(responseCode = "401", description = "Unauthorized user"),
+            @ApiResponse(responseCode = "500", description = "User registration error")
+    })
     @PostMapping("/register")
     public ResponseEntity register(@RequestBody @Valid RegisterDTO data){
         if(this.repository.findByLogin(data.login()) != null) return ResponseEntity.badRequest().build();
@@ -52,6 +69,12 @@ public class AuthenticationController {
         return ResponseEntity.status(HttpStatus.OK).body("Registered User.");
     }
 
+    @Operation(summary = "Delete user", description = "This can only be done by the logged in user with role admin.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Delete User."),
+            @ApiResponse(responseCode = "401", description = "Unauthorized user"),
+            @ApiResponse(responseCode = "500", description = "User delete error")
+    })
     @DeleteMapping("/deleteUser/{userId}")
     public ResponseEntity deleteUser(@PathVariable @NotBlank UUID userId) {
         if(userId == null) return ResponseEntity.badRequest().body("No username provided. Try again?");
@@ -67,6 +90,14 @@ public class AuthenticationController {
         }
     }
 
+    @Operation(summary = "List all users", description = "List all users")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "OK"),
+            @ApiResponse(responseCode = "401", description = "User Unauthorized"),
+            @ApiResponse(responseCode = "404", description = "Users not found."),
+            @ApiResponse(responseCode = "422", description = "Request data invalid"),
+            @ApiResponse(responseCode = "500", description = "Error list users")
+    })
     @GetMapping("/findAllUsers")
     public ResponseEntity<List<User>> getAllUsers() {
         return new ResponseEntity<>(repository.findAll(), HttpStatus.OK);

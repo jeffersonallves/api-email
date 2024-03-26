@@ -15,8 +15,11 @@
 	<name>api-email</name>
 	<description>Email Sending API</description>
 	<properties>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 		<java.version>17</java.version>
 		<jwt.version>4.4.0</jwt.version>
+		<springdoc.version>2.4.0</springdoc.version>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -100,7 +103,38 @@
 			<artifactId>commons-lang3</artifactId>
 			<version>3.12.0</version>
 		</dependency>
+
+		<dependency>
+			<groupId>org.springdoc</groupId>
+			<artifactId>springdoc-openapi-starter-common</artifactId>
+			<version>${springdoc.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.springdoc</groupId>
+			<artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+			<version>${springdoc.version}</version>
+		</dependency>
+
 	</dependencies>
+
+	<profiles>
+		<profile>
+			<id>dev</id>
+			<properties>
+				<spring.profile>dev</spring.profile>
+			</properties>
+			<activation>
+				<activeByDefault>true</activeByDefault>
+			</activation>
+		</profile>
+
+		<profile>
+			<id>prod</id>
+			<properties>
+				<spring.profile>prod</spring.profile>
+			</properties>
+		</profile>
+	</profiles>
 
 	<build>
 		<plugins>
